@@ -2,7 +2,6 @@
 [run]
 branch = True
 source = ec2connect
-# omit = bad_file.py
 
 [paths]
 source =

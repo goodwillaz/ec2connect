@@ -149,6 +149,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
     Returns: None
 
     """
+    private_key_file = Path(private_key_file)
     _create_ssh_keypair(private_key_file, debug)
 
     instances = [instances] if not isinstance(instances, list) else instances

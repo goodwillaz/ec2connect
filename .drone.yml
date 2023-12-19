@@ -1,0 +1,77 @@
+kind: pipeline
+name: qa
+type: docker
+
+x-testing: &testing
+  caches:
+    - pip
+  commands:
+    - apk add --no-interactive --no-progress --quiet git
+    - pip install --quiet --no-input --no-color --disable-pip-version-check --root-user-action=ignore tox
+    - tox --workdir /tmp/.tox
+
+steps:
+  - name: test-python-3.10
+    image: python:3.10-alpine
+    <<: *testing
+
+  - name: test-python-3.11
+    image: python:3.11-alpine
+    <<: *testing
+
+  - name: test-python-3.12
+    image: python:3.12-alpine
+    <<: *testing
+
+  - name: build-number
+    image: drone/cli
+    commands:
+      - /bin/sh scripts/build-number.sh
+
+  - name: publish
+    image: python:3.12-alpine
+    caches:
+      - pip
+    environment:
+      TWINE_USERNAME: __token__
+      TWINE_PASSWORD:
+        from_secret: pypi_test_token
+    commands:
+      - apk add --no-interactive --no-progress --quiet git
+      - pip install --quiet --no-input --no-color --disable-pip-version-check --root-user-action=ignore tox
+      - tox -e build
+      - tox -e publish
+    depends_on:
+      - test-python-3.10
+      - test-python-3.11
+      - test-python-3.12
+      - build-number
+
+trigger:
+  ref:
+    - "refs/heads/release/**"
+
+---
+kind: pipeline
+name: prod
+type: docker
+
+steps:
+  - name: publish
+    image: python:3.12-alpine
+    caches:
+      - pip
+    environment:
+      TWINE_USERNAME: __token__
+      TWINE_PASSWORD:
+        from_secret: pypi_token
+      TWINE_REPOSITORY: pypi
+    commands:
+      - apk add --no-interactive --no-progress --quiet git
+      - pip install --quiet --no-input --no-color --disable-pip-version-check --root-user-action=ignore tox
+      - tox -e build
+      - tox -e publish
+
+trigger:
+  ref:
+    - "refs/tags/**"

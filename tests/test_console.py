@@ -128,14 +128,16 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_ssh(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_ssh(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
         mock_questionary.select.return_value.ask.return_value = {"instance_id": "i-foobar"}
 
         local_state = state.State(config=Config())
-        CliRunner().invoke(console.cli, "ssh", catch_exceptions=False, obj=local_state)
+        CliRunner().invoke(console.cli, "ssh", standalone_mode=False, catch_exceptions=False, obj=local_state)
 
         mock_aws.instance_connect.assert_called_with(profile='default', region=None, instance_id='i-foobar', debug=False, os_user='ec2-user', ssh_port='22', private_key_file=None)
         mock_aws.instance_choices.assert_called_with(profile='default', region=None)
@@ -143,7 +145,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_ssh_no_selection(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_ssh_no_selection(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -159,7 +163,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_ssh_instance(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_ssh_instance(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -173,7 +179,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_ssh_custom_arguments(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_ssh_custom_arguments(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -187,7 +195,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_key_config(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_key_config(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -202,7 +212,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_key_option(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_key_option(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -216,7 +228,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_key_no_selection(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_key_no_selection(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )
@@ -232,7 +246,9 @@ class ConsoleTestCase(TestCase):
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
     @mock.patch("ec2connect.util.aws.run")
-    def test_key_no_key(self, mock_run, mock_questionary, mock_aws):
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_key_no_key(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
         mock_run.return_value = CompletedProcess(
             args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
         )

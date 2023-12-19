@@ -44,11 +44,6 @@ steps:
       - pip install --quiet --no-input --no-color --disable-pip-version-check --root-user-action=ignore tox
       - tox -e build
       - tox -e publish
-    depends_on:
-      - test-python-3.10
-      - test-python-3.11
-      - test-python-3.12
-      - build-number
 
 trigger:
   ref:

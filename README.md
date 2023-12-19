@@ -10,18 +10,46 @@
 [![Twitter](https://img.shields.io/twitter/url/http/shields.io.svg?style=social&label=Twitter)](https://twitter.com/ec2connect)
 -->
 
-[![Project generated with PyScaffold](https://img.shields.io/badge/-PyScaffold-005CA0?logo=pyscaffold)](https://pyscaffold.org/)
-
 # ec2connect
 
-> Utility to connect to ec2 instances through a bastion host.
+> Utility to connect to ec2 instances through EC2 Instance Connect
 
-A longer description of your project goes here...
+# Prereqs
 
+* Python 3.10+
+* AWS CLI 2+
+* An [EC2 Instance Connect Endpoint](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html) setup and configured
+* EC2 instances that support Instance Connect
+* saml2aws (optional)
 
-<!-- pyscaffold-notes -->
+# Installation
 
-## Note
+The easiest method is directly with pip, however virtual environments and pipenv are recommended
 
-This project has been set up using PyScaffold 4.5. For details and usage
-information on PyScaffold see https://pyscaffold.org/.
+> $ pip install ec2connect
+
+or
+
+> $ pipenv install ec2connect 
+
+# Configuration
+
+If you are using saml2aws to log into AWS via a federated identity, ensure that it is configured first with credentials saved.  You should be able to run `saml2aws list-roles --skip-prompt` and get a list of roles that saml2aws has access to without user interaction.
+
+Next you can configure ec2connect.  Just like saml2aws and the aws cli, it supports multiple profiles and will properly use those in those tools.  You can pass the `--profile <profile>` option and this is the profile that will be used to store saml2aws credentials (optional) and that will be used for the AWS CLI calls (you can configure ~/.aws/credentials as needed as well)
+
+These commands should be run in whichever Python environment you installed them.  If using virtualenv, activate your environment.  If using pipenv, use either `pipenv shell` or prefix the commands with `pipenv run`.
+
+> ec2connect configure
+
+> ec2connect --profile myprofile configure
+
+# Usage
+
+For expanded help, use the `--help` flag on any command.
+
+To SSH into an instance, use the following
+> ec2connect ssh
+
+To drop a public key into Instance Connect for an instance to use (good for normal SSH connections or SCP file transfers)
+> ec2connect key

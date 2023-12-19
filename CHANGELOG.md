@@ -1,7 +1,5 @@
 # Changelog
 
-## Version 0.1 (development)
+## Version 2013.12.0
 
-- Feature A added
-- FIX: nasty bug #1729 fixed
-- add your changes here!
+- Initial release

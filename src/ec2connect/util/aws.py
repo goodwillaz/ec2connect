@@ -84,7 +84,7 @@ def instance_choices(profile: str, region: str, public_only: bool = False) -> li
 def instance_connect(  # pylint: disable=too-many-arguments
     profile: str,
     region: str,
-    instance_id: str,
+    instance: Any,
     os_user: str = "ec2-user",
     ssh_port: str = "22",
     private_key_file: str | None = None,
@@ -110,7 +110,7 @@ def instance_connect(  # pylint: disable=too-many-arguments
         "ec2-instance-connect",
         "ssh",
         "--instance-id",
-        instance_id,
+        instance["instance_id"],
         "--connection-type",
         "eice",
         "--os-user",

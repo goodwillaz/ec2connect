@@ -223,7 +223,7 @@ class AwsTestCase(TestCase):
     def test_instance_connect_default_params(self, mock_os, mock_shutil):
         mock_shutil.which.return_value = "aws"
 
-        instance_connect(profile="default", region="region", instance_id="i-foo")
+        instance_connect(profile="default", region="region", instance={"instance_id": "i-foo"})
 
         mock_os.execvp.assert_called_once_with(
             "aws",
@@ -254,7 +254,7 @@ class AwsTestCase(TestCase):
         instance_connect(
             profile="default",
             region="region",
-            instance_id="i-foo",
+            instance={"instance_id": "i-foo"},
             os_user="ubuntu",
             ssh_port="2222",
             private_key_file="foo",

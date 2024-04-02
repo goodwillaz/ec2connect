@@ -83,7 +83,6 @@ def configure(local_state: state.State):
 
 
 @cli.command()
-@click.argument("instance", required=False)
 @click.option("-u", "--os-user", help="Instance SSH User", default="ec2-user")
 @click.option("-p", "--ssh-port", help="Instance SSH Port", default="22")
 @click.option(
@@ -95,25 +94,22 @@ def configure(local_state: state.State):
 @saml2aws.load_saml2aws
 @aws.validate_aws_cli
 @state.pass_state
-def ssh(local_state: state.State, instance: str | None, **kwargs):
+def ssh(local_state: state.State, **kwargs):
     """Connect to an instance via SSH"""
+    instance = questionary.select(
+        message="Choose an instance",
+        choices=aws.instance_choices(
+            profile=local_state.config.profile, region=local_state.config.aws_region
+        ),
+    ).ask()
+
     if instance is None:
-        answer = questionary.select(
-            message="Choose an instance",
-            choices=aws.instance_choices(
-                profile=local_state.config.profile, region=local_state.config.aws_region
-            ),
-        ).ask()
-
-        if answer is None:
-            sys.exit(1)
-
-        instance = answer["instance_id"]
+        sys.exit(1)
 
     aws.instance_connect(
         profile=local_state.config.profile,
         region=local_state.config.aws_region,
-        instance_id=instance,
+        instance=instance,
         debug=local_state.debug,
         **kwargs
     )

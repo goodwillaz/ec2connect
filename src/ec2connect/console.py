@@ -154,3 +154,41 @@ def key(local_state: state.State, **kwargs):
         debug=local_state.debug,
         **kwargs
     )
+
+
+@cli.command()
+@click.option("-l", "--local-port", help="Local port")
+@click.option("-r", "--remote-port", help="Remote port", required=True)
+@click.option("-e", "--endpoint", help="Endpoint to tunnel to", required=True)
+@click.option("-u", "--os-user", help="Instance SSH User", default="ec2-user")
+@click.option("-p", "--ssh-port", help="Instance SSH Port", default="22")
+@click.option(
+    "-k",
+    "--private-key-file",
+    help="Private SSH Keyfile to use",
+    type=click.Path(resolve_path=True),
+)
+@saml2aws.load_saml2aws
+@aws.validate_aws_cli
+@state.pass_state
+def tunnel(local_state: state.State, **kwargs):
+    """Open a tunnel to some remote endpoint via an instance, via SSH"""
+    instance = questionary.select(
+        message="Choose an instance",
+        choices=aws.instance_choices(
+            profile=local_state.config.profile, region=local_state.config.aws_region
+        ),
+    ).ask()
+
+    if instance is None:
+        sys.exit(1)
+
+    kwargs["private_key_file"] = str(kwargs["private_key_file"] or local_state.config.key)
+
+    aws.tunnel(
+        profile=local_state.config.profile,
+        region=local_state.config.aws_region,
+        instance=instance,
+        debug=local_state.debug,
+        **kwargs
+    )

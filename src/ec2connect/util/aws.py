@@ -18,6 +18,10 @@ import logging
 import os
 import re
 import shutil
+import socket
+import subprocess
+import time
+from contextlib import closing
 from functools import update_wrapper
 from pathlib import Path
 from subprocess import run, CalledProcessError
@@ -132,8 +136,9 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
     profile: str,
     region: str,
     instances: Any,
-    private_key_file: Path,
+    private_key_file: Path | str,
     os_user: str = "ec2-user",
+    no_output: bool = False,
     debug: bool = False,
 ) -> None:
     """
@@ -144,6 +149,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
         instances: List of instances to push public key to
         private_key_file: Private key path to get public key from
         os_user: OS User to push with request, defaults to ec2-user
+        no_output: Do not print
         debug:
 
     Returns: None
@@ -185,7 +191,8 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
             private_dns = private_dns or instance["private_dns"]
 
         hostname = instance["public_dns"] or instance["private_dns"]
-        echo(f"You have 60 seconds to log in to {hostname} with {private_key_file}")
+        if not no_output:
+            echo(f"You have 60 seconds to log in to {hostname} with {private_key_file}")
 
     # Remove the public key so ssh-agent doesn't get bloated
     try:
@@ -201,8 +208,100 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
     ssh_command = f'ssh -o ProxyCommand="{proxy_command}" -i {private_key_file} {os_user}@{private_dns}'
     scp_command = f'scp -o ProxyCommand="{proxy_command}" -i {private_key_file} <file> {os_user}@{private_dns}:<file>'
 
-    echo(f"Example SSH command:\n{ssh_command}")
-    echo(f"Example SCP command:\n{scp_command}")
+    if not no_output:
+        echo(f"Example SSH command:\n{ssh_command}")
+        echo(f"Example SCP command:\n{scp_command}")
+
+
+def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
+        profile: str,
+        region: str,
+        instance: Any,
+        remote_port: str,
+        endpoint: str,
+        local_port: str | None = None,
+        os_user: str = "ec2-user",
+        ssh_port: str = "22",
+        private_key_file: str | None = None,
+        debug: bool = False,
+) -> None:
+    local_port = _find_free_port() if local_port is None else local_port
+    tunnel_port = _find_free_port()
+
+    # Start a tunnel first
+    tunnel_args = [
+        _find_aws_cli(),
+        "--profile",
+        profile,
+        "--region",
+        region,
+        "ec2-instance-connect",
+        "open-tunnel",
+        "--instance-id",
+        instance["instance_id"],
+        "--remote-port",
+        ssh_port,
+        "--local-port",
+        tunnel_port
+    ]
+
+    if debug:
+        tunnel_args.append("--debug")
+
+    # Open the tunnel to the instance first
+    tunnel_proc = subprocess.Popen(tunnel_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    time.sleep(5)
+
+    if tunnel_proc.poll() is not None:
+        out, err = tunnel_proc.communicate()
+        raise RuntimeError(f"Could not start tunnel: {err}")
+
+    # Put a key onto the instance next so we can tunnel into it
+    instance_connect_key(
+        profile=profile,
+        region=region,
+        instances=instance,
+        private_key_file=private_key_file,
+        os_user=os_user,
+        debug=debug,
+        no_output=True
+    )
+
+    ssh_args = [
+        _find_ssh(),
+        "-NL",
+        f"0.0.0.0:{local_port}:{endpoint}:{remote_port}",
+        "-p",
+        tunnel_port,
+        "-o",
+        "StrictHostKeyChecking=no",
+        "-o",
+        "UserKnownHostsFile=/dev/null",
+        "-l",
+        os_user,
+        "-i",
+        private_key_file
+    ]
+
+    if debug:
+        ssh_args.append("-v")
+
+    ssh_args.append("127.0.0.1")
+
+    ssh_proc = subprocess.Popen(ssh_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+
+    time.sleep(5)
+
+    if ssh_proc.poll() is not None:
+        out, err = ssh_proc.communicate()
+        raise RuntimeError(f"Could not start ssh: {err}")
+
+    echo(f"Tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
+
+    ssh_proc.wait()
+
+    tunnel_proc.kill()
 
 
 def _find_aws_cli() -> str:
@@ -210,6 +309,13 @@ def _find_aws_cli() -> str:
     if aws is None:
         raise UsageError("aws cli could not be found on PATH")
     return aws
+
+
+def _find_ssh() -> str:
+    ssh = shutil.which("ssh")
+    if ssh is None:
+        raise UsageError("ssh could not be found on PATH")
+    return ssh
 
 
 def _extract_aws_version(version_string: str) -> str:
@@ -276,3 +382,10 @@ def _find_ssh_keygen() -> str:
             "ssh-keygen could not be found on PATH, is openssh-client installed?"
         )
     return ssh_keygen
+
+
+def _find_free_port():
+    with closing(socket.socket(socket.AF_INET, socket.SOCK_STREAM)) as s:
+        s.bind(('', 0))
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return str(s.getsockname()[1])

@@ -75,6 +75,20 @@ def instance_choices(profile: str, region: str, public_only: bool = False) -> li
     Returns: list[Choice]
 
     """
+    response = get_instances(profile, region)
+
+    return list(map(_create_choice(public_only), response))
+
+
+def get_instances(profile, region):
+    """
+    Args:
+        profile:
+        region:
+
+    Returns: list[dict]
+
+    """
     ec2 = boto3.Session(profile_name=profile).client("ec2", region_name=region)
     response = ec2.describe_instances(
         Filters=[{"Name": "instance-state-name", "Values": ["running"]}],
@@ -85,7 +99,22 @@ def instance_choices(profile: str, region: str, public_only: bool = False) -> li
     return choices
 
 
-def instance_connect(  # pylint: disable=too-many-arguments
+    Returns:
+
+    """
+    instances = get_instances(profile, region)
+    for instance in instances:
+        if instance["Instances"][0]["InstanceId"] == instance_id:
+            return {
+                "instance_id": instance["Instances"][0]["InstanceId"],
+                "public_dns": instance["Instances"][0]["PublicDnsName"] or None,
+                "private_dns": instance["Instances"][0]["PrivateDnsName"],
+            }
+
+    return None
+
+
+def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     profile: str,
     region: str,
     instance: Any,
@@ -99,7 +128,7 @@ def instance_connect(  # pylint: disable=too-many-arguments
     Args:
         profile: AWS profile to use
         region: AWS region to use
-        instance_id: AWS Instance ID to connect to
+        instance: AWS Instance ID to connect to
         os_user: OS User to log in as, defaults to ec2-user
         ssh_port: Port on instance to SSH to, defaults to 22
         private_key_file: Private key file to use, default None
@@ -132,7 +161,7 @@ def instance_connect(  # pylint: disable=too-many-arguments
     os.execvp(args[0], args)
 
 
-def instance_connect_key(  # pylint: disable=too-many-arguments
+def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positional-arguments
     profile: str,
     region: str,
     instances: Any,
@@ -213,7 +242,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments
         echo(f"Example SCP command:\n{scp_command}")
 
 
-def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
+def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using-with,too-many-positional-arguments
         profile: str,
         region: str,
         instance: Any,
@@ -225,6 +254,23 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
         private_key_file: str | None = None,
         debug: bool = False,
 ) -> None:
+    """
+    Create local SSH tunnel using ec2 instance connect open-tunnel
+    Args:
+        profile:
+        region:
+        instance:
+        remote_port:
+        endpoint:
+        local_port:
+        os_user:
+        ssh_port:
+        private_key_file:
+        debug:
+
+    Returns:
+
+    """
     local_port = _find_free_port() if local_port is None else local_port
     tunnel_port = _find_free_port()
 
@@ -254,7 +300,7 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
     time.sleep(5)
 
     if tunnel_proc.poll() is not None:
-        out, err = tunnel_proc.communicate()
+        _, err = tunnel_proc.communicate()
         raise RuntimeError(f"Could not start tunnel: {err}")
 
     # Put a key onto the instance next so we can tunnel into it
@@ -278,6 +324,10 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
         "StrictHostKeyChecking=no",
         "-o",
         "UserKnownHostsFile=/dev/null",
+        "-o",
+        f"ProxyCommand={' '.join(tunnel_args)}",
+        "-o",
+        "LogLevel=ERROR",
         "-l",
         os_user,
         "-i",
@@ -294,7 +344,7 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals
     time.sleep(5)
 
     if ssh_proc.poll() is not None:
-        out, err = ssh_proc.communicate()
+        _, err = ssh_proc.communicate()
         raise RuntimeError(f"Could not start ssh: {err}")
 
     echo(f"Tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")

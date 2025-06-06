@@ -157,11 +157,11 @@ def key(local_state: state.State, **kwargs):
 
 
 @cli.command()
+@click.option("-i", "--instance", help="Instance to tunnel through")
 @click.option("-l", "--local-port", help="Local port")
 @click.option("-r", "--remote-port", help="Remote port", required=True)
 @click.option("-e", "--endpoint", help="Endpoint to tunnel to", required=True)
 @click.option("-u", "--os-user", help="Instance SSH User", default="ec2-user")
-@click.option("-p", "--ssh-port", help="Instance SSH Port", default="22")
 @click.option(
     "-k",
     "--private-key-file",
@@ -173,14 +173,19 @@ def key(local_state: state.State, **kwargs):
 @state.pass_state
 def tunnel(local_state: state.State, **kwargs):
     """Open a tunnel to some remote endpoint via an instance, via SSH"""
-    instance = questionary.select(
-        message="Choose an instance",
-        choices=aws.instance_choices(
-            profile=local_state.config.profile, region=local_state.config.aws_region
-        ),
-    ).ask()
+    if kwargs["instance"] is None:
+        kwargs["instance"] = questionary.select(
+            message="Choose an instance",
+            choices=aws.instance_choices(
+                profile=local_state.config.profile, region=local_state.config.aws_region
+            ),
+        ).ask()
 
-    if instance is None:
+    else:
+        kwargs["instance"] = aws.get_instance(profile=local_state.config.profile, region=local_state.config.aws_region,
+                                              instance_id=kwargs["instance"])
+
+    if kwargs["instance"] is None:
         sys.exit(1)
 
     kwargs["private_key_file"] = str(kwargs["private_key_file"] or local_state.config.key)
@@ -188,7 +193,6 @@ def tunnel(local_state: state.State, **kwargs):
     aws.tunnel(
         profile=local_state.config.profile,
         region=local_state.config.aws_region,
-        instance=instance,
         debug=local_state.debug,
         **kwargs
     )

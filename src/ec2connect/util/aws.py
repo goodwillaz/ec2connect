@@ -19,8 +19,6 @@ import os
 import re
 import shutil
 import socket
-import subprocess
-import time
 from contextlib import closing
 from functools import update_wrapper
 from pathlib import Path
@@ -94,10 +92,15 @@ def get_instances(profile, region):
         Filters=[{"Name": "instance-state-name", "Values": ["running"]}],
         MaxResults=1000,
     )
+    return list(response["Reservations"])
 
-    choices = list(map(_create_choice(public_only), list(response["Reservations"])))
-    return choices
 
+def get_instance(profile, region, instance_id):
+    """
+    Args:
+        profile:
+        region:
+        instance_id:
 
     Returns:
 
@@ -250,7 +253,6 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
         endpoint: str,
         local_port: str | None = None,
         os_user: str = "ec2-user",
-        ssh_port: str = "22",
         private_key_file: str | None = None,
         debug: bool = False,
 ) -> None:
@@ -272,7 +274,6 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
 
     """
     local_port = _find_free_port() if local_port is None else local_port
-    tunnel_port = _find_free_port()
 
     # Start a tunnel first
     tunnel_args = [
@@ -284,24 +285,11 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
         "ec2-instance-connect",
         "open-tunnel",
         "--instance-id",
-        instance["instance_id"],
-        "--remote-port",
-        ssh_port,
-        "--local-port",
-        tunnel_port
+        instance["instance_id"]
     ]
 
     if debug:
         tunnel_args.append("--debug")
-
-    # Open the tunnel to the instance first
-    tunnel_proc = subprocess.Popen(tunnel_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-
-    time.sleep(5)
-
-    if tunnel_proc.poll() is not None:
-        _, err = tunnel_proc.communicate()
-        raise RuntimeError(f"Could not start tunnel: {err}")
 
     # Put a key onto the instance next so we can tunnel into it
     instance_connect_key(
@@ -317,9 +305,9 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
     ssh_args = [
         _find_ssh(),
         "-NL",
-        f"0.0.0.0:{local_port}:{endpoint}:{remote_port}",
-        "-p",
-        tunnel_port,
+        f"127.0.0.1:{local_port}:{endpoint}:{remote_port}",
+        "-o",
+        "ExitOnForwardFailure=yes",
         "-o",
         "StrictHostKeyChecking=no",
         "-o",
@@ -339,19 +327,9 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
 
     ssh_args.append("127.0.0.1")
 
-    ssh_proc = subprocess.Popen(ssh_args, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    echo(f"Opening tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
 
-    time.sleep(5)
-
-    if ssh_proc.poll() is not None:
-        _, err = ssh_proc.communicate()
-        raise RuntimeError(f"Could not start ssh: {err}")
-
-    echo(f"Tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
-
-    ssh_proc.wait()
-
-    tunnel_proc.kill()
+    os.execvp(ssh_args[0], ssh_args)
 
 
 def _find_aws_cli() -> str:

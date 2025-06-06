@@ -77,6 +77,43 @@ class Saml2awsTestCase(TestCase):
 
     @mock.patch("ec2connect.util.saml2aws.shutil")
     @mock.patch("ec2connect.util.saml2aws.run")
+    def test_saml2aws_iam_roles_one(self, mock_run, mock_shutil):
+        mock_shutil.which.return_value = "saml2aws"
+        mock_run.return_value = CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="""
+Using IdP Account default to access Okta https://somedomain.okta.com/home/amazon_aws/123456789/272
+
+Account: Account1 (123456789123)
+arn:aws:iam::123456789123:role/Role1
+""",
+        )
+
+        result = iam_roles(region="region")
+
+        mock_run.assert_called_with(
+            [
+                "saml2aws",
+                "list-roles",
+                "--skip-prompt",
+                "--cache-saml",
+                "--region",
+                "region",
+            ],
+            capture_output=True,
+            check=True,
+            text=True,
+        )
+
+        assert len(result) == 1
+        assert isinstance(result[0], Choice)
+
+        assert result[0].title == "arn:aws:iam::123456789123:role/Role1 (Account1)"
+        assert result[0].value == "arn:aws:iam::123456789123:role/Role1"
+
+    @mock.patch("ec2connect.util.saml2aws.shutil")
+    @mock.patch("ec2connect.util.saml2aws.run")
     def test_saml2aws_iam_roles(self, mock_run, mock_shutil):
         mock_shutil.which.return_value = "saml2aws"
         mock_run.return_value = CompletedProcess(

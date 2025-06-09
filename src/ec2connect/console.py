@@ -41,7 +41,7 @@ logger = logging.getLogger("ec2connect.console")
     callback=lambda _, __, value: Path(value).expanduser().resolve() if value else None,
 )
 @click.option("-d", "--debug", is_flag=True)
-@click.version_option("version")
+@click.version_option()
 def cli(ctx, profile: str, debug: bool, config_file: str = None):
     """Connect to EC2 instances with ease"""
 

@@ -66,6 +66,7 @@ steps:
       TWINE_REPOSITORY: pypi
     commands:
       - apk add --no-interactive --no-progress --quiet git
+      - git tag $DRONE_TAG
       - pip install --quiet --no-input --no-color --disable-pip-version-check --root-user-action=ignore tox
       - tox -e build
       - tox -e publish

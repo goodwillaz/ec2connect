@@ -161,7 +161,7 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
     if debug:
         args.append("--debug")
 
-    os.execvp(args[0], args)
+    os.execv(args[0], args)
 
 
 def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -329,13 +329,17 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
 
     echo(f"Opening tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
 
-    os.execvp(ssh_args[0], ssh_args)
+    os.execv(ssh_args[0], ssh_args)
 
 
 def _find_aws_cli() -> str:
     aws = shutil.which("aws")
     if aws is None:
         raise UsageError("aws cli could not be found on PATH")
+
+    if " " in aws and not aws.startswith('"'):
+        ssh = f'"{aws}"'
+
     return aws
 
 
@@ -343,6 +347,10 @@ def _find_ssh() -> str:
     ssh = shutil.which("ssh")
     if ssh is None:
         raise UsageError("ssh could not be found on PATH")
+
+    if " " in ssh and not ssh.startswith('"'):
+        ssh = f'"{ssh}"'
+
     return ssh
 
 

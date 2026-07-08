@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import socket
+import subprocess
 from contextlib import closing
 from functools import update_wrapper
 from pathlib import Path
@@ -33,6 +34,14 @@ from packaging import version
 logger = logging.getLogger("ec2connect.aws")
 
 __MIN_AWS_VERSION__ = "2.12.0"
+
+
+def _run_or_exec(args: list[str]) -> None:
+    if os.name == "nt":
+        subprocess.run(args, check=True)
+        return
+
+    os.execv(args[0], args)
 
 
 def validate_aws_cli(f) -> Callable:
@@ -161,7 +170,7 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
     if debug:
         args.append("--debug")
 
-    os.execv(args[0], args)
+    _run_or_exec(args)
 
 
 def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -329,7 +338,7 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
 
     echo(f"Opening tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
 
-    os.execv(ssh_args[0], ssh_args)
+    _run_or_exec(ssh_args)
 
 
 def _find_aws_cli() -> str:

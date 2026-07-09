@@ -95,12 +95,12 @@ def configure(local_state: state.State):
 @aws.validate_aws_cli
 @state.pass_state
 def ssh(local_state: state.State, **kwargs):
+    """Connect to an instance via SSH"""
     if local_state.config.key is None and not kwargs["private_key_file"]:
         raise click.UsageError(
             "No key is specified, please run 'ec2connect configure' or specify the --private-key-file option"
         )
 
-    """Connect to an instance via SSH"""
     instance = questionary.select(
         message="Choose an instance",
         choices=aws.instance_choices(

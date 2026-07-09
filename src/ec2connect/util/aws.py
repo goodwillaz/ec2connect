@@ -226,7 +226,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
             "--instance-os-user",
             os_user,
             "--ssh-public-key",
-            private_key_file.with_suffix(".pub").read_text(),
+            private_key_file.with_suffix(".pub").read_text(encoding="utf-8"),
         ]
 
         if debug:
@@ -356,7 +356,7 @@ def _find_aws_cli() -> str:
         raise UsageError("aws cli could not be found on PATH")
 
     if " " in aws and not aws.startswith('"'):
-        ssh = f'"{aws}"'
+        aws = f'"{aws}"'
 
     return aws
 

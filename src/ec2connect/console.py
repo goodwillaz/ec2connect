@@ -95,6 +95,11 @@ def configure(local_state: state.State):
 @aws.validate_aws_cli
 @state.pass_state
 def ssh(local_state: state.State, **kwargs):
+    if local_state.config.key is None and not kwargs["private_key_file"]:
+        raise click.UsageError(
+            "No key is specified, please run 'ec2connect configure' or specify the --private-key-file option"
+        )
+
     """Connect to an instance via SSH"""
     instance = questionary.select(
         message="Choose an instance",
@@ -105,6 +110,8 @@ def ssh(local_state: state.State, **kwargs):
 
     if instance is None:
         sys.exit(1)
+
+    kwargs["private_key_file"] = str(kwargs["private_key_file"] or local_state.config.key)
 
     aws.instance_connect(
         profile=local_state.config.profile,

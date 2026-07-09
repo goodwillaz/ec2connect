@@ -19,7 +19,6 @@ import os
 import re
 import shutil
 import socket
-import subprocess
 from contextlib import closing
 from functools import update_wrapper
 from pathlib import Path
@@ -38,7 +37,7 @@ __MIN_AWS_VERSION__ = "2.12.0"
 
 def _run_or_exec(args: list[str]) -> None:
     if os.name == "nt":
-        subprocess.run(args, check=True)
+        run(args, check=True)
         return
 
     os.execv(args[0], args)
@@ -130,9 +129,9 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
     profile: str,
     region: str,
     instance: Any,
+    private_key_file: Path | str,
     os_user: str = "ec2-user",
     ssh_port: str = "22",
-    private_key_file: str | None = None,
     debug: bool = False,
 ) -> None:
     """
@@ -162,13 +161,22 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
         os_user,
         "--ssh-port",
         ssh_port,
+        "--private-key-file",
+        private_key_file,
     ]
-
-    if private_key_file:
-        args.extend(["--private-key-file", private_key_file])
 
     if debug:
         args.append("--debug")
+
+    instance_connect_key(
+        profile=profile,
+        region=region,
+        instances=instance,
+        private_key_file=private_key_file,
+        os_user=os_user,
+        no_output=True,
+        debug=debug
+    )
 
     _run_or_exec(args)
 

@@ -137,10 +137,28 @@ class ConsoleTestCase(TestCase):
         mock_questionary.select.return_value.ask.return_value = {"instance_id": "i-foobar"}
 
         local_state = state.State(config=Config())
+        local_state.config.key = Path('/foo/bar.key')
         CliRunner().invoke(console.cli, "ssh", standalone_mode=False, catch_exceptions=False, obj=local_state)
 
-        mock_aws.instance_connect.assert_called_with(profile='default', region=None, instance={"instance_id": "i-foobar"}, debug=False, os_user='ec2-user', ssh_port='22', private_key_file=None)
+        mock_aws.instance_connect.assert_called_with(profile='default', region=None, instance={"instance_id": "i-foobar"}, debug=False, os_user='ec2-user', ssh_port='22', private_key_file='/foo/bar.key')
         mock_aws.instance_choices.assert_called_with(profile='default', region=None)
+
+    @mock.patch("ec2connect.console.aws")
+    @mock.patch("ec2connect.console.questionary")
+    @mock.patch("ec2connect.util.aws.run")
+    @mock.patch("ec2connect.util.aws.shutil")
+    def test_ssh_no_key(self, mock_shutil, mock_run, mock_questionary, mock_aws):
+        mock_shutil.return_value = True
+        mock_run.return_value = CompletedProcess(
+            args=[], returncode=0, stdout="aws-cli/2.12 Python/3.11"
+        )
+
+        local_state = state.State(config=Config())
+        with pytest.raises(click.UsageError) as e:
+            CliRunner().invoke(console.cli, "ssh", standalone_mode=False, catch_exceptions=False, obj=local_state)
+
+        assert e.value.message == "No key is specified, please run 'ec2connect configure' or specify the --private-key-file option"
+        mock_aws.instance_connect.assert_not_called()
 
     @mock.patch("ec2connect.console.aws")
     @mock.patch("ec2connect.console.questionary")
@@ -154,6 +172,7 @@ class ConsoleTestCase(TestCase):
         mock_questionary.select.return_value.ask.return_value = None
 
         local_state = state.State(config=Config())
+        local_state.config.key = Path('/foo/bar.key')
         result = CliRunner().invoke(console.cli, "ssh", catch_exceptions=False, obj=local_state)
 
         assert result.exit_code == 1

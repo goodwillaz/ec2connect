@@ -222,11 +222,19 @@ class AwsTestCase(TestCase):
 
     @mock.patch("ec2connect.util.aws.shutil")
     @mock.patch("ec2connect.util.aws._run_or_exec")
-    def test_instance_connect_default_params(self, mock_run_or_exec, mock_shutil):
+    @mock.patch("ec2connect.util.aws.instance_connect_key")
+    def test_instance_connect_default_params(self, mock_ic_key, mock_run_or_exec, mock_shutil):
         mock_shutil.which.return_value = "aws"
 
-        instance_connect(profile="default", region="region", instance={"instance_id": "i-foo"})
+        instance_connect(
+            profile="default", region="region", instance={"instance_id": "i-foo"},
+            private_key_file="/foo/bar",
+        )
 
+        mock_ic_key.assert_called_once_with(
+            profile="default", region="region", instances={"instance_id": "i-foo"},
+            private_key_file="/foo/bar", os_user="ec2-user", no_output=True, debug=False,
+        )
         mock_run_or_exec.assert_called_once_with(
             [
                 "aws",
@@ -244,12 +252,15 @@ class AwsTestCase(TestCase):
                 "ec2-user",
                 "--ssh-port",
                 "22",
+                "--private-key-file",
+                "/foo/bar",
             ],
         )
 
     @mock.patch("ec2connect.util.aws.shutil")
     @mock.patch("ec2connect.util.aws._run_or_exec")
-    def test_instance_connect_custom_params(self, mock_run_or_exec, mock_shutil):
+    @mock.patch("ec2connect.util.aws.instance_connect_key")
+    def test_instance_connect_custom_params(self, mock_ic_key, mock_run_or_exec, mock_shutil):
         mock_shutil.which.return_value = "aws"
 
         instance_connect(
@@ -262,6 +273,10 @@ class AwsTestCase(TestCase):
             debug=True,
         )
 
+        mock_ic_key.assert_called_once_with(
+            profile="default", region="region", instances={"instance_id": "i-foo"},
+            private_key_file="foo", os_user="ubuntu", no_output=True, debug=True,
+        )
         mock_run_or_exec.assert_called_once_with(
             [
                 "aws",
@@ -285,26 +300,26 @@ class AwsTestCase(TestCase):
             ],
         )
 
-    @mock.patch("ec2connect.util.aws.subprocess.run")
+    @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os.execv")
-    def test_run_or_exec_non_windows(self, mock_execv, mock_subprocess_run):
+    def test_run_or_exec_non_windows(self, mock_execv, mock_run):
         args = ["aws", "ec2-instance-connect", "ssh"]
 
         with mock.patch("ec2connect.util.aws.os.name", "posix"):
             _run_or_exec(args)
 
         mock_execv.assert_called_once_with("aws", args)
-        mock_subprocess_run.assert_not_called()
+        mock_run.assert_not_called()
 
-    @mock.patch("ec2connect.util.aws.subprocess.run")
+    @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os.execv")
-    def test_run_or_exec_windows(self, mock_execv, mock_subprocess_run):
+    def test_run_or_exec_windows(self, mock_execv, mock_run):
         args = ["aws", "ec2-instance-connect", "ssh"]
 
         with mock.patch("ec2connect.util.aws.os.name", "nt"):
             _run_or_exec(args)
 
-        mock_subprocess_run.assert_called_once_with(args, check=True)
+        mock_run.assert_called_once_with(args, check=True)
         mock_execv.assert_not_called()
 
     @mock.patch("ec2connect.util.aws._run_or_exec")

@@ -385,14 +385,19 @@ class AwsTestCase(TestCase):
             "Opening tunnel to service.internal:443 open on 127.0.0.1:1337"
         )
 
+    @mock.patch("ec2connect.util.aws.Path.read_text")
+    @mock.patch("ec2connect.util.aws._create_ssh_keypair")
     @mock.patch("ec2connect.util.aws.echo")
     @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os")
     @mock.patch("ec2connect.util.aws.shutil")
     def test_instance_connect_key_private_dns(
-        self, mock_shutil, mock_os, mock_run, mock_echo
+        self, mock_shutil, mock_os, mock_run, mock_echo, mock_ssh_keypair, mock_read_text
     ):
-        mock_shutil.which.side_effect = ["ssh-keygen", "aws"]
+        mock_shutil.which.return_value = "aws"
+        mock_ssh_keypair.return_value = None
+        mock_pub_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest"
+        mock_read_text.return_value = mock_pub_key
 
         instance_connect_key(
             profile="default",
@@ -405,26 +410,9 @@ class AwsTestCase(TestCase):
             private_key_file=Path("/foo/bar"),
         )
 
-        mock_os.remove.assert_has_calls(
-            [mock.call(Path("/foo/bar")), mock.call(Path("/foo/bar.pub"))]
-        )
+        mock_os.remove.assert_called_once_with(Path("/foo/bar.pub"))
         mock_run.assert_has_calls(
             [
-                mock.call(
-                    [
-                        "ssh-keygen",
-                        "-t",
-                        "ed25519",
-                        "-N",
-                        "",
-                        "-C",
-                        "ec2connect@auto",
-                        "-f",
-                        Path("/foo/bar"),
-                    ],
-                    check=True,
-                    capture_output=True,
-                ),
                 mock.call(
                     [
                         "aws",
@@ -432,6 +420,7 @@ class AwsTestCase(TestCase):
                         "default",
                         "--region",
                         "region",
+                        "--no-cli-pager",
                         "ec2-instance-connect",
                         "send-ssh-public-key",
                         "--instance-id",
@@ -439,10 +428,9 @@ class AwsTestCase(TestCase):
                         "--instance-os-user",
                         "ec2-user",
                         "--ssh-public-key",
-                        "file:///foo/bar.pub",
+                        mock_pub_key,
                     ],
                     check=True,
-                    capture_output=True,
                 ),
             ]
         )
@@ -450,14 +438,19 @@ class AwsTestCase(TestCase):
             "You have 60 seconds to log in to foo.bar with /foo/bar"
         )
 
+    @mock.patch("ec2connect.util.aws.Path.read_text")
+    @mock.patch("ec2connect.util.aws._create_ssh_keypair")
     @mock.patch("ec2connect.util.aws.echo")
     @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os")
     @mock.patch("ec2connect.util.aws.shutil")
-    def test_instance_connect_key_private_dns(
-        self, mock_shutil, mock_os, mock_run, mock_echo
+    def test_instance_connect_key_private_dns_debug(
+        self, mock_shutil, mock_os, mock_run, mock_echo, mock_ssh_keypair, mock_read_text
     ):
-        mock_shutil.which.side_effect = ["ssh-keygen", "aws"]
+        mock_shutil.which.return_value = "aws"
+        mock_ssh_keypair.return_value = None
+        mock_pub_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest"
+        mock_read_text.return_value = mock_pub_key
 
         instance_connect_key(
             profile="default",
@@ -480,6 +473,7 @@ class AwsTestCase(TestCase):
                         "default",
                         "--region",
                         "region",
+                        "--no-cli-pager",
                         "ec2-instance-connect",
                         "send-ssh-public-key",
                         "--instance-id",
@@ -487,22 +481,27 @@ class AwsTestCase(TestCase):
                         "--instance-os-user",
                         "ec2-user",
                         "--ssh-public-key",
-                        "file:///foo/bar.pub",
+                        mock_pub_key,
                         "--debug",
                     ],
                     check=True,
-                    capture_output=True,
                 )
             ]
         )
 
+    @mock.patch("ec2connect.util.aws.Path.read_text")
+    @mock.patch("ec2connect.util.aws._create_ssh_keypair")
     @mock.patch("ec2connect.util.aws.echo")
     @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os")
     @mock.patch("ec2connect.util.aws.shutil")
     def test_instance_connect_key_public_dns(
-        self, mock_shutil, mock_os, mock_run, mock_echo
+        self, mock_shutil, mock_os, mock_run, mock_echo, mock_ssh_keypair, mock_read_text
     ):
+        mock_ssh_keypair.return_value = None
+        mock_pub_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest"
+        mock_read_text.return_value = mock_pub_key
+
         instance_connect_key(
             profile="default",
             region="region",
@@ -518,13 +517,18 @@ class AwsTestCase(TestCase):
             "You have 60 seconds to log in to foo.baz with /foo/bar"
         )
 
+    @mock.patch("ec2connect.util.aws.Path.read_text")
+    @mock.patch("ec2connect.util.aws._create_ssh_keypair")
     @mock.patch("ec2connect.util.aws.echo")
     @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os")
     @mock.patch("ec2connect.util.aws.shutil")
     def test_instance_connect_key_ssh_suggestions(
-        self, mock_shutil, mock_os, mock_run, mock_echo
+        self, mock_shutil, mock_os, mock_run, mock_echo, mock_ssh_keypair, mock_read_text
     ):
+        mock_ssh_keypair.return_value = None
+        mock_read_text.return_value = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest"
+
         instance_connect_key(
             profile="default",
             region="region",
@@ -558,14 +562,22 @@ class AwsTestCase(TestCase):
             ]
         )
 
+    @mock.patch("ec2connect.util.aws.Path.read_text")
+    @mock.patch("ec2connect.util.aws._create_ssh_keypair")
     @mock.patch("ec2connect.util.aws.echo")
     @mock.patch("ec2connect.util.aws.run")
     @mock.patch("ec2connect.util.aws.os")
     @mock.patch("ec2connect.util.aws.shutil")
     def test_instance_connect_key_no_fail_os_remove(
-        self, mock_shutil, mock_os, mock_run, mock_echo
+        self, mock_shutil, mock_os, mock_run, mock_echo, mock_ssh_keypair, mock_read_text
     ):
-        mock_os.remove.side_effect = FileNotFoundError()
+        mock_ssh_keypair.return_value = None
+        mock_read_text.return_value = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest"
+
+        def raise_file_not_found(*args):
+            raise FileNotFoundError()
+
+        mock_os.remove.side_effect = raise_file_not_found
 
         instance_connect_key(
             profile="default",

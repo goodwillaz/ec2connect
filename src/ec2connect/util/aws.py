@@ -218,6 +218,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
             profile,
             "--region",
             region,
+            "--no-cli-pager",
             "ec2-instance-connect",
             "send-ssh-public-key",
             "--instance-id",
@@ -225,13 +226,13 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
             "--instance-os-user",
             os_user,
             "--ssh-public-key",
-            private_key_file.with_suffix(".pub").as_uri(),
+            private_key_file.with_suffix(".pub").read_text(),
         ]
 
         if debug:
             args.append("--debug")
 
-        run(args, check=True, capture_output=True)
+        run(args, check=True)
 
         # Set some variables, so we can construct some sample SCP or SSH commands
         if instance["public_dns"]:

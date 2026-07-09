@@ -431,6 +431,7 @@ class AwsTestCase(TestCase):
                         mock_pub_key,
                     ],
                     check=True,
+                    capture_output=True,
                 ),
             ]
         )
@@ -485,6 +486,7 @@ class AwsTestCase(TestCase):
                         "--debug",
                     ],
                     check=True,
+                    capture_output=False,
                 )
             ]
         )

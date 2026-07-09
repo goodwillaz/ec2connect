@@ -232,7 +232,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
         if debug:
             args.append("--debug")
 
-        run(args, check=True)
+        run(args, check=True, capture_output=not debug)
 
         # Set some variables, so we can construct some sample SCP or SSH commands
         if instance["public_dns"]:

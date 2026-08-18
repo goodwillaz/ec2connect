@@ -20,7 +20,7 @@
 * AWS CLI 2+
 * An [EC2 Instance Connect Endpoint](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html) setup and configured
 * EC2 instances that support Instance Connect
-* saml2aws (optional)
+* saml2aws (optional, but preferred)
 
 # Installation
 

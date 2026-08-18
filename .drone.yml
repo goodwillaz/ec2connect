@@ -25,6 +25,7 @@ steps:
 
   - name: build-number
     image: drone/cli
+    user: "0:0"
     environment:
       DRONE_TOKEN:
         from_secret: drone_token

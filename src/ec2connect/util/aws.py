@@ -35,6 +35,14 @@ logger = logging.getLogger("ec2connect.aws")
 __MIN_AWS_VERSION__ = "2.12.0"
 
 
+def _run_or_exec(args: list[str]) -> None:
+    if os.name == "nt":
+        run(args, check=True)
+        return
+
+    os.execv(args[0], args)
+
+
 def validate_aws_cli(f) -> Callable:
     """
 
@@ -121,9 +129,9 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
     profile: str,
     region: str,
     instance: Any,
+    private_key_file: Path | str,
     os_user: str = "ec2-user",
     ssh_port: str = "22",
-    private_key_file: str | None = None,
     debug: bool = False,
 ) -> None:
     """
@@ -153,15 +161,24 @@ def instance_connect(  # pylint: disable=too-many-arguments,too-many-positional-
         os_user,
         "--ssh-port",
         ssh_port,
+        "--private-key-file",
+        private_key_file,
     ]
-
-    if private_key_file:
-        args.extend(["--private-key-file", private_key_file])
 
     if debug:
         args.append("--debug")
 
-    os.execvp(args[0], args)
+    instance_connect_key(
+        profile=profile,
+        region=region,
+        instances=instance,
+        private_key_file=private_key_file,
+        os_user=os_user,
+        no_output=True,
+        debug=debug
+    )
+
+    _run_or_exec(args)
 
 
 def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positional-arguments
@@ -201,6 +218,7 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
             profile,
             "--region",
             region,
+            "--no-cli-pager",
             "ec2-instance-connect",
             "send-ssh-public-key",
             "--instance-id",
@@ -208,13 +226,13 @@ def instance_connect_key(  # pylint: disable=too-many-arguments,too-many-positio
             "--instance-os-user",
             os_user,
             "--ssh-public-key",
-            private_key_file.with_suffix(".pub").as_uri(),
+            private_key_file.with_suffix(".pub").read_text(encoding="utf-8"),
         ]
 
         if debug:
             args.append("--debug")
 
-        run(args, check=True, capture_output=True)
+        run(args, check=True, capture_output=not debug)
 
         # Set some variables, so we can construct some sample SCP or SSH commands
         if instance["public_dns"]:
@@ -329,13 +347,17 @@ def tunnel(  # pylint: disable=too-many-arguments,too-many-locals,consider-using
 
     echo(f"Opening tunnel to {endpoint}:{remote_port} open on 127.0.0.1:{local_port}")
 
-    os.execvp(ssh_args[0], ssh_args)
+    _run_or_exec(ssh_args)
 
 
 def _find_aws_cli() -> str:
     aws = shutil.which("aws")
     if aws is None:
         raise UsageError("aws cli could not be found on PATH")
+
+    if " " in aws and not aws.startswith('"'):
+        aws = f'"{aws}"'
+
     return aws
 
 
@@ -343,6 +365,10 @@ def _find_ssh() -> str:
     ssh = shutil.which("ssh")
     if ssh is None:
         raise UsageError("ssh could not be found on PATH")
+
+    if " " in ssh and not ssh.startswith('"'):
+        ssh = f'"{ssh}"'
+
     return ssh
 
 
